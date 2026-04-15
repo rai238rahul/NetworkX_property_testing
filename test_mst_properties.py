@@ -2,20 +2,19 @@
 E0 251o (2026) - Property-Based Testing for NetworkX
 
 Team members:
-    Rahul Rai
+    Rahul Rai (SR No. 24765)
 
 Algorithms under test:
     Minimum Spanning Tree - tested via nx.minimum_spanning_tree (undirected, weighted)
 
-This module uses Hypothesis to test MST properties on generated graphs, including:
-    - Invariants and postconditions (including the cycle property for unique heavy edges)
-    - Metamorphic properties
-    - Idempotence
-    - Boundary and special cases
+This module currently tests:
+    - A subset property: MST total weight does not exceed the sum of all edge weights.
+    - The cycle property: on any simple cycle, an edge that is uniquely maximum weight
+      on that cycle is not in the MST.
 
-Graph generation (see connected_weighted_undirected_graphs) covers a wide range of sizes (2-20 nodes), densities, and weight assignments
-to ensure robust coverage of tie-breaks and topological structure. The cycle-property test uses a separate smaller-graph strategy because
-enumerating simple cycles is expensive on large dense graphs.
+Graph generation uses connected Erdos-Renyi graphs (2-20 vertices) for the weight-sum property,
+and smaller graphs (4-10 vertices) for cycle enumeration, since listing simple cycles is costly
+on large dense instances.
 """
 
 import networkx as nx
@@ -118,6 +117,9 @@ def test_mst_total_weight_at_most_sum_of_all_edge_weights(spanning_tree_input_gr
     Test strategy: Generate connected weighted graphs and compare the sum of weights
     from MST edges with the total edge weight sum of the original graph.
 
+    Assumptions: Undirected simple graph; one connected component; every edge has a
+    numeric 'weight' attribute ≥ 1.
+
     Why this matters: Violating this would signal that the MST algorithm included
     extraneous edges, corrupted weights, or otherwise produced an invalid tree; it
     validates fundamental correctness.
@@ -136,21 +138,23 @@ def test_mst_total_weight_at_most_sum_of_all_edge_weights(spanning_tree_input_gr
 @settings(max_examples=25, deadline=None)
 def test_cycle_property_unique_heaviest_edge_not_in_mst(weighted_input_graph):
     """
-    Property: In any cycle of a graph, the edge with the maximum weight
-    cannot belong to the Minimum Spanning Tree.
+    Property: For any simple cycle C in a graph, if one edge e has a strictly greater 
+    weight than all other edges in C, then e is not in the minimum spanning tree.
 
-    Mathematical basis: The cycle property states that for any cycle in a weighted graph,
-    removing the maximum-weight edge will not increase connectivity,
-    hence it cannot be part of the MST.
+    Mathematical basis: If a spanning tree T contained e, removing e splits T into two
+    components. The path C \ {e} connects the endpoints of e using only edges lighter
+    than e, so some lighter edge crosses the same cut and can replace e, lowering total
+    weight - contradicting minimality.
 
-    Tie-breaking note: If several edges on C share the maximum weight, an MST may
-    include one of them; the classical statement we test is the strict case (unique
-    maximum on that cycle).
+    Tie-breaking note: If several edges on C tie for maximum weight, an MST may
+    include one of them; this test only asserts the case of a unique maximum on C.
 
-    Test strategy: For each simple cycle returned by nx.simple_cycles (undirected,
-    with a length cap to bound work), locate edges attaining the maximum weight on
-    that cycle. When exactly one edge attains the maximum, assert it is absent from
-    the MST edge set.
+    Test strategy: For each simple cycle from nx.simple_cycles (length cap 12), if
+    exactly one edge attains the cycle maximum weight, assert it is absent from the MST
+    edge set.
+
+    Assumptions: Undirected simple graph; positive integer weights; connected input
+    (see small_connected_weighted_graphs_for_cycle_property).
 
     Why this matters: Violating this would signal that the MST algorithm included
     extraneous edges, corrupted weights, or otherwise produced an invalid tree; it
