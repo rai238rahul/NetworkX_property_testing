@@ -21,6 +21,10 @@ import networkx as nx
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
+# ---------------------------------------------------------------------------
+# Graph generation
+# ---------------------------------------------------------------------------
+
 @st.composite
 def connected_weighted_undirected_graphs(draw):
     """
